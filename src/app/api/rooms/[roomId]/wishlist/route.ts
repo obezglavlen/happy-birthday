@@ -13,8 +13,22 @@ export async function POST(
     ? body.wishlist
     : [];
   const wishlist = rawWishlist
-    .map((item) => String(item ?? "").trim())
-    .filter((item) => item.length > 0);
+    .map((item) => {
+      if (typeof item !== "object" || item === null) {
+        return {
+          text: "",
+          description: "",
+        };
+      }
+
+      const payload = item as { id?: unknown; text?: unknown; description?: unknown };
+      return {
+        id: typeof payload.id === "string" ? payload.id.trim() : undefined,
+        text: String(payload.text ?? "").trim(),
+        description: String(payload.description ?? "").trim(),
+      };
+    })
+    .filter((item) => item.text.length > 0);
 
   if (!token) {
     return NextResponse.json(

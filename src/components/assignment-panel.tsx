@@ -50,11 +50,20 @@ export default function AssignmentPanel({
                   isClaimedByMe ? "border-pink-400 bg-pink-50" : "border-slate-100"
                 }`}
               >
-                <span className={`text-sm font-medium ${
-                  isClaimedByOthers ? "line-through text-slate-300" : "text-slate-700"
-                }`}>
-                  {item.text}
-                </span>
+                <div className="flex flex-col">
+                  <span className={`text-sm font-medium ${
+                    isClaimedByOthers ? "line-through text-slate-300" : "text-slate-700"
+                  }`}>
+                    {item.text}
+                  </span>
+                  {item.description && (
+                    <span className={`text-xs ${
+                      isClaimedByOthers ? "text-slate-300" : "text-slate-500"
+                    }`}>
+                      {item.description}
+                    </span>
+                  )}
+                </div>
                 {!isClaimedByOthers && !claimedItemId && onClaim && alreadyStarted && (
                   <button
                     onClick={() => onClaim(item.id)}

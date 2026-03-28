@@ -1,10 +1,12 @@
-import { FormEvent } from "react";
 import { WishlistItem } from "@/types/happy-birthday";
 
 type Props = {
-  draft: string;
-  onDraftChange: (value: string) => void;
-  onSave: (event: FormEvent<HTMLFormElement>) => void;
+  itemTextDraft: string;
+  itemDescriptionDraft: string;
+  onItemTextChange: (value: string) => void;
+  onItemDescriptionChange: (value: string) => void;
+  onAddItem: () => void;
+  onRemoveItem: (id: string) => void;
   saving: boolean;
   savedCount: number;
   isOwner: boolean;
@@ -14,9 +16,12 @@ type Props = {
 };
 
 export default function WishlistPanel({
-  draft,
-  onDraftChange,
-  onSave,
+  itemTextDraft,
+  itemDescriptionDraft,
+  onItemTextChange,
+  onItemDescriptionChange,
+  onAddItem,
+  onRemoveItem,
   saving,
   savedCount,
   isOwner = false,
@@ -33,27 +38,66 @@ export default function WishlistPanel({
       </h3>
       
       {isOwner ? (
-        <form onSubmit={onSave} className="mt-4 flex flex-col gap-3">
+        <div className="mt-4 flex flex-col gap-3">
           <p className="text-xs text-slate-600">
-            Пиши желания по одному в строке. Гости разберут их сами!
+            Добавляй по одному подарку. После этого он появится карточкой в списке.
           </p>
-          <textarea
-            className="min-h-30 rounded-2xl border border-pink-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-pink-400"
-            placeholder="Например: Полет на шаре, Подписка на музыку... Разделение происходит с помощью переноса строки"
-            value={draft}
-            onChange={(event) => onDraftChange(event.target.value)}
+
+          <input
+            className="rounded-2xl border border-pink-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-pink-400"
+            placeholder="Название подарка, например: Наушники"
+            value={itemTextDraft}
+            onChange={(event) => onItemTextChange(event.target.value)}
           />
+
+          <textarea
+            className="min-h-24 rounded-2xl border border-pink-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-pink-400"
+            placeholder="Описание: цвет, размер, бренд или ссылка"
+            value={itemDescriptionDraft}
+            onChange={(event) => onItemDescriptionChange(event.target.value)}
+          />
+
+          <button
+            type="button"
+            onClick={onAddItem}
+            disabled={saving}
+            className="self-start rounded-2xl border border-pink-300 px-4 py-2 text-xs font-bold uppercase text-pink-700 transition hover:bg-pink-50"
+          >
+            {saving ? "Сохраняем..." : "Добавить в список"}
+          </button>
+
+          <div className="space-y-2">
+            {items.length === 0 && (
+              <p className="text-sm italic text-slate-400">Пока нет добавленных подарков</p>
+            )}
+            {items.map((item) => (
+              <div
+                key={item.id}
+                className="flex items-start justify-between rounded-xl border-2 border-slate-100 p-3"
+              >
+                <div className="flex flex-col">
+                  <span className="text-sm font-semibold text-slate-800">{item.text}</span>
+                  {item.description && (
+                    <span className="text-xs text-slate-500">{item.description}</span>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onRemoveItem(item.id)}
+                  disabled={saving}
+                  className="text-xs font-bold uppercase text-pink-600 hover:text-pink-800"
+                >
+                  Удалить
+                </button>
+              </div>
+            ))}
+          </div>
+
           <div className="flex items-center justify-between text-xs text-slate-600 font-medium">
             <span>{savedCount} {label}</span>
-            <button
-              type="submit"
-              disabled={saving}
-              className="rounded-2xl bg-linear-to-r from-pink-400 to-pink-600 px-4 py-2 font-bold text-white transition hover:brightness-110 disabled:opacity-60"
-            >
-              {saving ? "..." : "Обновить список"}
-            </button>
+            <span>{saving ? "Сохраняем изменения..." : "Изменения сохраняются автоматически"}</span>
           </div>
-        </form>
+        </div>
       ) : (
         <div className="mt-4 space-y-2">
           {items?.length === 0 && (
@@ -70,11 +114,20 @@ export default function WishlistPanel({
                   isClaimedByMe ? "border-pink-400 bg-pink-50" : "border-slate-100"
                 }`}
               >
-                <span className={`text-sm font-medium ${
-                  isClaimedByOthers ? "line-through text-slate-300" : "text-slate-700"
-                }`}>
-                  {item.text}
-                </span>
+                <div className="flex flex-col">
+                  <span className={`text-sm font-medium ${
+                    isClaimedByOthers ? "line-through text-slate-300" : "text-slate-700"
+                  }`}>
+                    {item.text}
+                  </span>
+                  {item.description && (
+                    <span className={`text-xs ${
+                      isClaimedByOthers ? "text-slate-300" : "text-slate-500"
+                    }`}>
+                      {item.description}
+                    </span>
+                  )}
+                </div>
                 {!isClaimedByOthers && !claimedItemId && onClaim && (
                   <button
                     onClick={() => onClaim(item.id)}

@@ -14,6 +14,7 @@ import {
   Participant,
   Room,
   SelfInfo,
+  WishlistItem,
 } from "@/types/happy-birthday";
 
 const TOKEN_STORE_PREFIX = "happy-birthday:token:";
@@ -43,7 +44,9 @@ export default function HappyBirthdayClient() {
   const [token, setToken] = useState<string | null>(null);
   const [origin, setOrigin] = useState("");
   const [removingId, setRemovingId] = useState<string | null>(null);
-  const [wishlistDraft, setWishlistDraft] = useState("");
+  const [wishlistDraftItems, setWishlistDraftItems] = useState<WishlistItem[]>([]);
+  const [wishlistItemTextDraft, setWishlistItemTextDraft] = useState("");
+  const [wishlistItemDescriptionDraft, setWishlistItemDescriptionDraft] = useState("");
   const [wishlistSaving, setWishlistSaving] = useState(false);
   const [isWishlistDirty, setIsWishlistDirty] = useState(false);
 
@@ -60,7 +63,9 @@ export default function HappyBirthdayClient() {
       setToken(null);
       setRoomError(null);
       setParticipants([]);
-      setWishlistDraft("");
+      setWishlistDraftItems([]);
+      setWishlistItemTextDraft("");
+      setWishlistItemDescriptionDraft("");
       setIsWishlistDirty(false);
       return;
     }
@@ -206,18 +211,111 @@ export default function HappyBirthdayClient() {
 
   useEffect(() => {
     if (!selfInfo?.participant || !selfInfo.isOwner) {
-      setWishlistDraft("");
+      setWishlistDraftItems([]);
+      setWishlistItemTextDraft("");
+      setWishlistItemDescriptionDraft("");
       setIsWishlistDirty(false);
       return;
     }
     if (isWishlistDirty) return;
-    setWishlistDraft(selfInfo.ownerWishlist.map((item) => item.text).join("\n"));
+    setWishlistDraftItems(selfInfo.ownerWishlist);
   }, [selfInfo?.isOwner, selfInfo?.ownerWishlist, selfInfo?.participant, isWishlistDirty]);
 
-  const handleWishlistDraftChange = useCallback((value: string) => {
-    setWishlistDraft(value);
+  const handleWishlistItemTextChange = useCallback((value: string) => {
+    setWishlistItemTextDraft(value);
     setIsWishlistDirty(true);
   }, []);
+
+  const handleWishlistItemDescriptionChange = useCallback((value: string) => {
+    setWishlistItemDescriptionDraft(value);
+    setIsWishlistDirty(true);
+  }, []);
+
+  const persistWishlist = useCallback(
+    async (items: WishlistItem[]) => {
+      if (!roomId || !token || !selfInfo?.isOwner) return;
+
+      setWishlistSaving(true);
+      setActionError(null);
+
+      const nextWishlist = items
+        .map((item) => ({
+          id: item.id,
+          text: item.text.trim(),
+          description: item.description?.trim() || "",
+        }))
+        .filter((item) => item.text.length > 0);
+
+      try {
+        const response = await fetch(`/api/rooms/${roomId}/wishlist`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token, wishlist: nextWishlist }),
+        });
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(payload?.error ?? "Не удалось сохранить вишлист");
+        }
+
+        const updatedOwnerWishlist = Array.isArray(payload?.ownerWishlist)
+          ? (payload.ownerWishlist as SelfInfo["ownerWishlist"])
+          : nextWishlist.map((item, index) => ({
+              id: item.id || `draft-${index}`,
+              text: item.text,
+              description: item.description || undefined,
+            }));
+
+        setSelfInfo((prev) =>
+          prev
+            ? {
+                ...prev,
+                ownerWishlist: updatedOwnerWishlist,
+              }
+            : prev,
+        );
+        setWishlistDraftItems(updatedOwnerWishlist);
+        setIsWishlistDirty(false);
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Не удалось сохранить вишлист";
+        setActionError(message);
+      } finally {
+        setWishlistSaving(false);
+      }
+    },
+    [roomId, token, selfInfo?.isOwner],
+  );
+
+  const handleWishlistAddItem = useCallback(() => {
+    const text = wishlistItemTextDraft.trim();
+    const description = wishlistItemDescriptionDraft.trim();
+    if (!text) {
+      setActionError("Введите название подарка");
+      return;
+    }
+
+    setActionError(null);
+    const nextItems = [
+      ...wishlistDraftItems,
+      {
+        id: `draft-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        text,
+        description: description || undefined,
+      },
+    ];
+    setWishlistDraftItems(nextItems);
+    setWishlistItemTextDraft("");
+    setWishlistItemDescriptionDraft("");
+    setIsWishlistDirty(true);
+    void persistWishlist(nextItems);
+  }, [wishlistItemTextDraft, wishlistItemDescriptionDraft, wishlistDraftItems, persistWishlist]);
+
+  const handleWishlistRemoveItem = useCallback((itemId: string) => {
+    const nextItems = wishlistDraftItems.filter((item) => item.id !== itemId);
+    setWishlistDraftItems(nextItems);
+    setIsWishlistDirty(true);
+    void persistWishlist(nextItems);
+  }, [wishlistDraftItems, persistWishlist]);
 
   const rememberToken = useCallback(
     (roomKey: string, nextToken: string) => {
@@ -350,60 +448,6 @@ export default function HappyBirthdayClient() {
       setPendingAction(false);
     }
   }, [fetchRoom, pendingAction, roomId, token]);
-
-  const handleWishlistSave = useCallback(
-    async (event: FormEvent<HTMLFormElement>) => {
-      event.preventDefault();
-      if (!roomId || !token || !selfInfo?.isOwner) return;
-
-      setWishlistSaving(true);
-      setActionError(null);
-
-      const nextWishlist = wishlistDraft
-        .split(/\r?\n/)
-        .map((line) => line.trim())
-        .filter((line) => line.length > 0);
-
-      try {
-        const response = await fetch(`/api/rooms/${roomId}/wishlist`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ token, wishlist: nextWishlist }),
-        });
-        const payload = await response.json();
-        if (!response.ok) {
-          throw new Error(payload?.error ?? "Не удалось сохранить вишлист");
-        }
-
-        const updatedOwnerWishlist = Array.isArray(payload?.ownerWishlist)
-          ? (payload.ownerWishlist as SelfInfo["ownerWishlist"])
-          : nextWishlist.map((text, index) => ({
-              id: `draft-${index}`,
-              text,
-            }));
-
-        setSelfInfo((prev) =>
-          prev
-            ? {
-                ...prev,
-                ownerWishlist: updatedOwnerWishlist,
-              }
-            : prev,
-        );
-        setWishlistDraft(updatedOwnerWishlist.map((item) => item.text).join("\n"));
-        setIsWishlistDirty(false);
-        setInfoMessage("Вишлист сохранён");
-        setTimeout(() => setInfoMessage(null), 3000);
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Не удалось сохранить вишлист";
-        setActionError(message);
-      } finally {
-        setWishlistSaving(false);
-      }
-    },
-    [roomId, token, wishlistDraft, selfInfo?.isOwner],
-  );
 
       const handleClaim = useCallback(
         async (itemId: string) => {
@@ -561,13 +605,16 @@ export default function HappyBirthdayClient() {
                     />
                     {youAreInRoom && selfInfo?.isOwner && (
                       <WishlistPanel
-                        draft={wishlistDraft}
-                        onDraftChange={handleWishlistDraftChange}
-                        onSave={handleWishlistSave}
+                        itemTextDraft={wishlistItemTextDraft}
+                        itemDescriptionDraft={wishlistItemDescriptionDraft}
+                        onItemTextChange={handleWishlistItemTextChange}
+                        onItemDescriptionChange={handleWishlistItemDescriptionChange}
+                        onAddItem={handleWishlistAddItem}
+                        onRemoveItem={handleWishlistRemoveItem}
                         saving={wishlistSaving}
-                        savedCount={selfInfo?.ownerWishlist.length ?? 0}
+                        savedCount={wishlistDraftItems.length}
                         isOwner={true}
-                        items={[]}
+                        items={wishlistDraftItems}
                         claimedItemId={undefined}
                         onClaim={undefined}
                       />

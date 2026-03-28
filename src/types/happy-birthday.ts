@@ -17,6 +17,7 @@ export type Room = {
 export type WishlistItem = {
   id: string;
   text: string;
+  description?: string;
   claimedBy?: string; // participantId
 };
 
@@ -31,4 +32,5 @@ export type SelfInfo = {
   ownerName: string;
   ownerId: string;
 };
+
 

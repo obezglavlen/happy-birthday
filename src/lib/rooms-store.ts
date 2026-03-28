@@ -12,7 +12,14 @@ type ParticipantDoc = {
 type WishlistItemDoc = {
   id: string;
   text: string;
+  description?: string;
   claimedBy?: string;
+};
+
+type WishlistInputItem = {
+  id?: string;
+  text: string;
+  description?: string;
 };
 
 type RoomDoc = {
@@ -42,6 +49,7 @@ const wishlistItemSchema = new mongoose.Schema<WishlistItemDoc>(
   {
     id: { type: String, required: true },
     text: { type: String, required: true },
+    description: { type: String },
     claimedBy: { type: String },
   },
   { _id: false }
@@ -191,7 +199,7 @@ class RoomsStore {
     };
   }
 
-  async updateWishlist(roomId: string, token: string, wishlist: string[]) {
+  async updateWishlist(roomId: string, token: string, wishlist: WishlistInputItem[]) {
     await this.#ready;
     const room = await RoomModel.findById(roomId);
     if (!room) throw new Error("Комната не найдена");
@@ -203,9 +211,10 @@ class RoomsStore {
       throw new Error("Только именинник может редактировать вишлист");
     }
 
-    const newItems: WishlistItemDoc[] = wishlist.map((text) => ({
-      id: randomUUID(),
-      text: text.trim(),
+    const newItems: WishlistItemDoc[] = wishlist.map((item) => ({
+      id: item.id?.trim() || randomUUID(),
+      text: item.text.trim(),
+      description: item.description?.trim() || undefined,
       claimedBy: undefined,
     }));
 
