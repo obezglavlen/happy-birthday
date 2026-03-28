@@ -1,0 +1,109 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f5d0e0; /* Darker pinkish background tint */
+  --foreground: #020617; /* Slate 950 for maximum contrast */
+  --birthday-pink: #db2777;
+  --birthday-yellow: #d97706;
+  --birthday-purple: #7c3aed;
+  --birthday-cyan: #22d3ee;
+
+  /* Define defaults so the compiler can resolve these variables */
+  --font-geist-sans: ui-sans-serif, system-ui, sans-serif;
+  --font-geist-mono: ui-monospace, monospace;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-birthday-pink: var(--birthday-pink);
+  --color-birthday-yellow: var(--birthday-yellow);
+  --color-birthday-purple: var(--birthday-purple);
+  --color-birthday-cyan: var(--birthday-cyan);
+  --font-family-sans: var(--font-geist-sans);
+  --font-family-mono: var(--font-geist-mono);
+}
+
+body {
+  background-color: var(--background);
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(244, 114, 182, 0.45) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, rgba(251, 191, 36, 0.4) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(34, 211, 238, 0.35) 0px, transparent 50%),
+    radial-gradient(at 0% 100%, rgba(167, 139, 250, 0.4) 0px, transparent 50%);
+  background-attachment: fixed;
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  min-height: 100vh;
+}
+
+.birthday-card {
+  border-radius: 2rem;
+  border: 2px solid rgba(219, 39, 119, 0.5); /* Stronger, high-contrast border */
+  background-color: #ffffff; /* Use background-color so gradients on hero panel aren't nuked */
+  box-shadow: 0 15px 35px -5px rgba(219, 39, 119, 0.15), 0 5px 15px -5px rgba(0, 0, 0, 0.05);
+}
+
+.confetti-fade {
+  position: relative;
+  isolation: isolate;
+}
+
+.confetti-fade::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle, rgba(234, 179, 8, 0.05) 0%, transparent 60%);
+  opacity: 0.4;
+  animation: balloon-float 15s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+
+@keyframes balloon-float {
+  0% {
+    transform: translateY(0) translateX(0);
+  }
+  100% {
+    transform: translateY(-30px) translateX(15px);
+  }
+}
+
+.confetti-field,
+.confetti-field::before,
+.confetti-field::after {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  background-image: 
+    radial-gradient(circle, var(--birthday-pink) 1px, transparent 1px),
+    radial-gradient(circle, var(--birthday-yellow) 1px, transparent 1px);
+  background-size: 400px 400px;
+  background-position: 0 0, 200px 200px;
+  animation: confettiFall 10s linear infinite;
+  opacity: 0.2;
+}
+
+.confetti-field::before {
+  content: "";
+  background-image: radial-gradient(circle, var(--birthday-cyan) 1px, transparent 1px);
+  background-size: 300px 300px;
+  animation-duration: 12s;
+  opacity: 0.15;
+}
+
+.confetti-field::after {
+  content: "";
+  background-image: radial-gradient(circle, var(--birthday-purple) 1px, transparent 1px);
+  background-size: 500px 500px;
+  animation-duration: 18s;
+  opacity: 0.15;
+}
+
+@keyframes confettiFall {
+  0% {
+    transform: translate3d(0, -20%, 0) rotate(0deg);
+  }
+  100% {
+    transform: translate3d(5%, 40%, 0) rotate(360deg);
+  }
+}
