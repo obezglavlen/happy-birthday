@@ -42,7 +42,7 @@ const participantSchema = new mongoose.Schema<ParticipantDoc>(
     joinedAt: { type: Number, required: true },
     token: { type: String, required: true },
   },
-  { _id: false }
+  { _id: false },
 );
 
 const wishlistItemSchema = new mongoose.Schema<WishlistItemDoc>(
@@ -52,7 +52,7 @@ const wishlistItemSchema = new mongoose.Schema<WishlistItemDoc>(
     description: { type: String },
     claimedBy: { type: String },
   },
-  { _id: false }
+  { _id: false },
 );
 
 const roomSchema = new mongoose.Schema<RoomDocument>({
@@ -131,11 +131,31 @@ class RoomsStore {
     return this.#toPublicRoom(room);
   }
 
-  async joinRoom(roomId: string, participantName: string) {
+  async joinRoom(roomId: string, participantName: string, ownerToken?: string) {
     await this.#ready;
     const room = await RoomModel.findById(roomId);
     if (!room) throw new Error("Комната не найдена");
     if (room.startedAt) throw new Error("Жеребьевка уже началась");
+
+    // Owner recovery: if ownerToken is provided and correct, return existing owner participant
+    if (ownerToken) {
+      if (ownerToken !== room.ownerToken) {
+        throw new Error("Неверный токен организатора");
+      }
+      const ownerParticipant = room.participants.find(
+        (p) => p.token === room.ownerToken,
+      );
+      if (!ownerParticipant) throw new Error("Участник не найден");
+      return {
+        room: this.#toPublicRoom(room.toObject()),
+        participant: ownerParticipant,
+      };
+    }
+
+    const nameTaken = room.participants.some(
+      (p) => p.name.toLowerCase() === participantName.toLowerCase(),
+    );
+    if (nameTaken) throw new Error("Это имя уже занято");
 
     const participant: ParticipantDoc = {
       id: randomUUID(),
@@ -155,7 +175,7 @@ class RoomsStore {
   async removeParticipant(
     roomId: string,
     ownerToken: string,
-    participantId: string
+    participantId: string,
   ) {
     await this.#ready;
     const room = await RoomModel.findById(roomId);
@@ -199,7 +219,11 @@ class RoomsStore {
     };
   }
 
-  async updateWishlist(roomId: string, token: string, wishlist: WishlistInputItem[]) {
+  async updateWishlist(
+    roomId: string,
+    token: string,
+    wishlist: WishlistInputItem[],
+  ) {
     await this.#ready;
     const room = await RoomModel.findById(roomId);
     if (!room) throw new Error("Комната не найдена");
@@ -235,7 +259,9 @@ class RoomsStore {
     const isOwner = participant.token === room.ownerToken;
     let claimedItemId: string | undefined = undefined;
     if (!isOwner) {
-      const item = room.ownerWishlist.find((item) => item.claimedBy === participant.id);
+      const item = room.ownerWishlist.find(
+        (item) => item.claimedBy === participant.id,
+      );
       if (item) {
         claimedItemId = item.id;
       }
@@ -284,7 +310,9 @@ class RoomsStore {
     }
 
     // Check if already claimed an item
-    const alreadyClaimed = room.ownerWishlist.some((item) => item.claimedBy === participant.id);
+    const alreadyClaimed = room.ownerWishlist.some(
+      (item) => item.claimedBy === participant.id,
+    );
     if (alreadyClaimed) {
       throw new Error("Вы уже выбрали подарок");
     }
@@ -309,7 +337,9 @@ class RoomsStore {
   }
 
   #toPublicRoom(room: RoomDoc) {
-    const ownerParticipant = room.participants.find((p) => p.token === room.ownerToken);
+    const ownerParticipant = room.participants.find(
+      (p) => p.token === room.ownerToken,
+    );
     return {
       id: room._id,
       name: room.name,
