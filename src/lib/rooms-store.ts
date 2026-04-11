@@ -135,7 +135,6 @@ class RoomsStore {
     await this.#ready;
     const room = await RoomModel.findById(roomId);
     if (!room) throw new Error("Комната не найдена");
-    if (room.startedAt) throw new Error("Жеребьевка уже началась");
 
     // Owner recovery: if ownerToken is provided and correct, return existing owner participant
     if (ownerToken) {
@@ -155,6 +154,19 @@ class RoomsStore {
     const nameTaken = room.participants.some(
       (p) => p.name.toLowerCase() === participantName.toLowerCase(),
     );
+
+    // After start: only allow re-joining by existing name (session recovery)
+    if (room.startedAt) {
+      if (!nameTaken) throw new Error("Такого участника нет в этой комнате");
+      const existing = room.participants.find(
+        (p) => p.name.toLowerCase() === participantName.toLowerCase(),
+      )!;
+      return {
+        room: this.#toPublicRoom(room.toObject()),
+        participant: existing,
+      };
+    }
+
     if (nameTaken) throw new Error("Это имя уже занято");
 
     const participant: ParticipantDoc = {
