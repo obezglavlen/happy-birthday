@@ -377,11 +377,6 @@ export default function HappyBirthdayClient() {
     async (event: FormEvent<HTMLFormElement>) => {
       event.preventDefault();
       if (!roomId || pendingAction) return;
-      if (room?.startedAt) {
-        setActionError("Праздник уже начался — вход закрыт");
-        return;
-      }
-
       setPendingAction(true);
       setActionError(null);
 
@@ -398,20 +393,11 @@ export default function HappyBirthdayClient() {
 
         const updatedRoom = payload.room as Room;
         const userToken = payload.token as string;
-        const participant = payload.participant as SelfInfo["participant"];
-
         rememberToken(roomId, userToken);
-        setSelfInfo({
-          isOwner: false,
-          participant: participant,
-          claimedItemId: undefined,
-          ownerWishlist: [],
-          ownerName: "",
-          ownerId: "",
-        });
         setRoom(updatedRoom);
         setParticipants(updatedRoom.participants);
         setJoinName("");
+        await fetchSelf(roomId, userToken);
       } catch (error) {
         const message =
           error instanceof Error ? error.message : "Ошибка входа в комнату";
@@ -420,7 +406,7 @@ export default function HappyBirthdayClient() {
         setPendingAction(false);
       }
     },
-    [joinName, pendingAction, rememberToken, roomId, room?.startedAt],
+    [joinName, pendingAction, rememberToken, roomId, fetchSelf],
   );
 
   const handleStart = useCallback(async () => {

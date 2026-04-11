@@ -49,9 +49,25 @@ export default function JoinPanel({
       )}
 
       {!youAreInRoom && roomStarted && (
-        <p className="mt-4 text-sm text-pink-400">
-          Гости уже собраны, список закрыт.
-        </p>
+        <form className="mt-4 flex flex-col gap-3" onSubmit={onJoin}>
+          <p className="text-sm text-slate-500">
+            Праздник начался. Введите своё имя, чтобы восстановить сессию.
+          </p>
+          <input
+            className="rounded-2xl border-2 border-pink-300 bg-white px-4 py-3 text-sm text-slate-950 font-bold placeholder:text-slate-500 outline-none transition focus:border-pink-600 focus:ring-2 focus:ring-pink-100"
+            placeholder="Ваше имя"
+            value={joinName}
+            onChange={(event) => onNameChange(event.target.value)}
+            required
+          />
+          <button
+            type="submit"
+            disabled={pending}
+            className="rounded-2xl bg-linear-to-r from-cyan-400 to-blue-500 px-4 py-3 text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-60"
+          >
+            {pending ? "Минутку..." : "Войти"}
+          </button>
+        </form>
       )}
 
       {youAreInRoom && (
