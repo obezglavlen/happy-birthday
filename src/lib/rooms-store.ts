@@ -151,23 +151,28 @@ class RoomsStore {
       };
     }
 
-    const nameTaken = room.participants.some(
+    const existingByName = room.participants.find(
       (p) => p.name.toLowerCase() === participantName.toLowerCase(),
     );
+    const nameTaken = Boolean(existingByName);
 
     // After start: only allow re-joining by existing name (session recovery)
     if (room.startedAt) {
       if (!nameTaken) throw new Error("Такого участника нет в этой комнате");
-      const existing = room.participants.find(
-        (p) => p.name.toLowerCase() === participantName.toLowerCase(),
-      )!;
+      const existing = existingByName!;
       return {
         room: this.#toPublicRoom(room.toObject()),
         participant: existing,
       };
     }
 
-    if (nameTaken) throw new Error("Это имя уже занято");
+    // Before start, allow session recovery by existing nickname instead of creating duplicates.
+    if (nameTaken) {
+      return {
+        room: this.#toPublicRoom(room.toObject()),
+        participant: existingByName!,
+      };
+    }
 
     const participant: ParticipantDoc = {
       id: randomUUID(),
@@ -247,12 +252,19 @@ class RoomsStore {
       throw new Error("Только именинник может редактировать вишлист");
     }
 
-    const newItems: WishlistItemDoc[] = wishlist.map((item) => ({
-      id: item.id?.trim() || randomUUID(),
-      text: item.text.trim(),
-      description: item.description?.trim() || undefined,
-      claimedBy: undefined,
-    }));
+    const existingClaimsByItemId = new Map(
+      room.ownerWishlist.map((item) => [item.id, item.claimedBy] as const),
+    );
+
+    const newItems: WishlistItemDoc[] = wishlist.map((item) => {
+      const id = item.id?.trim() || randomUUID();
+      return {
+        id,
+        text: item.text.trim(),
+        description: item.description?.trim() || undefined,
+        claimedBy: existingClaimsByItemId.get(id),
+      };
+    });
 
     room.ownerWishlist = newItems;
     await room.save();
